@@ -76,11 +76,12 @@ void game_wwqy::update() {
         getString(text[i].text,ReadValue(ReadValue(object+0x2d0)+0x388));    
         priority[i] = getWeaponType(ReadDword(object+0xec0));
         if (ReadFloat(ReadValue(object + 0x198) + 0x134)!=0&&ReadFloat(ReadValue(object + 0x198) + 0x134+8)!=-90000){
-            driver->read(ReadValue(object + 0x198) + 0x134, &pos[i], sizeof(this->pos[i]));           
+            driver->read(ReadValue(object + 0x198) + 0x134, &pos[i], sizeof(this->pos[i]));        
             isMiss[i] = false;
         }else {
             isMiss[i] = true;
-        }             
+        }                              
+                              
         dis[i] = getDis(pos[i],me_pos) *0.01f;        
         if(dis[i] == 0) continue;
         if(dis[i] < 25&&isMiss[i]){
@@ -211,6 +212,9 @@ void game_wwqy::Touch()
         float min_distance = FLT_MAX;
         D2D obj_headPos = {0.f, 0.f};
         bool has_target = false;
+        min_distance = FLT_MAX;
+        min_world_dist = FLT_MAX;
+        has_target = false;
         
         for (int i = 0; i < eneity_count; i++) {
             if (!isInit[i] || Bone_Pos[i].bone_count <= 0 || isMiss[i]) {
@@ -220,8 +224,15 @@ void game_wwqy::Touch()
                 if(hp[tempIndex]>0){
                     continue;
                 }else{
-                    tempIndex=-1;
-                    startTime = std::chrono::high_resolution_clock::now();
+                    if (tempIndex != -1){
+                        i=0;
+                        min_world_dist = FLT_MAX; 
+                        min_distance = FLT_MAX;
+                        obj_headPos = {0.f, 0.f};
+                        has_target = false;
+                        tempIndex=-1;
+                        startTime = std::chrono::high_resolution_clock::now();
+                    }                   
                 }
             }
                         
@@ -233,7 +244,8 @@ void game_wwqy::Touch()
                 float vy = headWorld.y - last_world[i].y;
                 float vz = headWorld.z - last_world[i].z;
                 vx *= 0.6f; vy *= 0.6f; vz *= 0.6f;
-                float dt = 0.016f;
+                float current_fps = std::clamp(imgui_fps, 30.0f, 120.0f);
+                float dt = 1.0f / current_fps;
                 predictWorld.x = headWorld.x + vx / dt * 0.2f;
                 predictWorld.y = headWorld.y + vy / dt * 0.2f;
                 predictWorld.z = headWorld.z + vz / dt * 0.2f;
@@ -255,16 +267,21 @@ void game_wwqy::Touch()
             float current_screen_dist_sq = dx_center * dx_center + dy_center * dy_center; 
             float current_world_dist = dis[i];
             bool is_better_target = false;
-            if (current_screen_dist_sq < min_distance) {
+            float screen_dist_diff = fabs(current_screen_dist_sq - min_distance);
+            if (current_screen_dist_sq < min_distance - 5) {
                 is_better_target = true;
             }
-            else if (current_screen_dist_sq == min_distance && current_world_dist < min_world_dist) {
-                is_better_target = true;
+            else if (screen_dist_diff <= 5) {
+                if (current_world_dist < min_world_dist) {
+                    is_better_target = true;
+                }
+            }else {
+                is_better_target = false;
             }
             if (is_better_target) {
                 min_distance = current_screen_dist_sq;
                 min_world_dist = current_world_dist;     
-                obj_headPos = worldScreen;                
+                obj_headPos = predictScreen;                
                 auto now = std::chrono::high_resolution_clock::now();
                 float duration = std::chrono::duration_cast<std::chrono::duration<float>>(now - startTime).count();
                 bool isIn75PercentCircle = (rect_w[i] <= 0.0f) || (fabs(dx_center) < (aimbot_range * 0.25f) * rect_w[i]);
@@ -273,10 +290,6 @@ void game_wwqy::Touch()
                     rectWidth = rect_w[i];
                     tempIndex = i;
                 }
-            }
-            
-            if(tempIndex!=-1&&i==tempIndex){
-                i=0;
             }
         }
         
