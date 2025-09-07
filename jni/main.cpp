@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
     FPS限制.AotuFPS_init();
     FPS限制.setAffinity(); 
     
-    if(!gameUtils.isjoin("1014691786")){
+    if(!gameUtils.isjoin("你的qq群号")){
         puts("QQ群验证失败，请加入");
         return 0;
     }
